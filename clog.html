@@ -74,7 +74,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Project Selection -->
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Select Project</label>
+                        <label for="projectSelect" class="block text-sm font-medium text-slate-700 mb-2">Select Project</label>
                         <select id="projectSelect" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">Loading projects...</option>
                         </select>
@@ -82,7 +82,7 @@
                     
                     <!-- JSONL File Selection -->
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Select Log File</label>
+                        <label for="jsonlSelect" class="block text-sm font-medium text-slate-700 mb-2">Select Log File</label>
                         <select id="jsonlSelect" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
                             <option value="">Select a project first</option>
                         </select>
@@ -255,17 +255,25 @@
                     const jsonlFiles = [];
                     for await (const [name, handle] of dirHandle.entries()) {
                         if (handle.kind === 'file' && name.endsWith('.jsonl')) {
-                            jsonlFiles.push({ name, handle });
+                            const file = await handle.getFile();
+                            jsonlFiles.push({ name, handle, lastModified: file.lastModified });
                         }
                     }
+
+                    // Sort files by modification date (newest first)
+                    jsonlFiles.sort((a, b) => b.lastModified - a.lastModified);
                     
                     // Populate JSONL select
                     jsonlSelect.innerHTML = '<option value="">Select a log file</option>';
                     jsonlFiles.forEach((file, index) => {
                         const option = document.createElement('option');
-                        option.value = index;
-                        option.textContent = file.name;
-                        option.dataset.fileHandle = JSON.stringify({name: file.name});
+                        option.value = index; // Use index after sorting
+                        
+                        const date = new Date(file.lastModified);
+                        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+                        
+                        option.textContent = `(${formattedDate}) ${file.name}`;
+                        option.dataset.fileHandle = JSON.stringify({name: file.name}); // Keep this for handle retrieval
                         jsonlSelect.appendChild(option);
                     });
                     
