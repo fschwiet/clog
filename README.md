@@ -12,6 +12,7 @@ A web-based viewer for Claude Code conversation logs with real-time monitoring a
 - **Token Usage**: Displays input/output tokens, cache statistics, and model information
 - **Tool Interactions**: Enhanced display for tool usage and results with visual indicators
 - **Message Types**: Supports text, tool_use, and tool_result content with proper formatting
+- **Sorted Log Files**: Automatically sorts log files by modification date for easy access
 
 ### 🔄 **Real-Time Monitoring**
 - **File Watching**: Automatically detects changes to JSONL files
