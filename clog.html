@@ -762,6 +762,7 @@
                         } else if (part.type === 'tool_use') {
                             const inputStr = JSON.stringify(part.input, null, 2);
                             const truncatedInput = inputStr.length > 500 ? inputStr.substring(0, 500) + '\n  ...truncated...' : inputStr;
+
                             partDiv.innerHTML = `
                                 <div class="mt-2 p-3 bg-indigo-50 rounded-md border border-indigo-200">
                                     <div class="flex items-center gap-2 mb-2">
@@ -773,6 +774,48 @@
                                     <pre class="text-xs bg-white p-2 rounded border overflow-x-auto">${escapeHtml(truncatedInput)}</pre>
                                 </div>`;
                         } else if (part.type === 'tool_result') {
+                            let resultContent = part.content || '';
+                            let parsedContent = null;
+
+                            // Try to parse content as JSON
+                            if (typeof resultContent === 'string' && resultContent.trim().startsWith('{')) {
+                                try {
+                                    parsedContent = JSON.parse(resultContent);
+                                } catch (e) {
+                                    // Not JSON, keep as string
+                                }
+                            } else if (Array.isArray(resultContent)) {
+                                // Handle array content (multiple content blocks)
+                                parsedContent = resultContent;
+                            }
+
+                            let contentHtml = '';
+
+                            if (Array.isArray(parsedContent)) {
+                                // Handle array content
+                                contentHtml = parsedContent.map(c => {
+                                    if (c.type === 'text') {
+                                        // Try to parse the text as JSON for better formatting
+                                        try {
+                                            const jsonContent = JSON.parse(c.text);
+                                            return `<pre class="text-xs bg-white p-2 rounded border mb-2 overflow-x-auto">${escapeHtml(JSON.stringify(jsonContent, null, 2))}</pre>`;
+                                        } catch (e) {
+                                            // Not JSON, render as plain text
+                                            return `<div class="text-sm bg-white p-2 rounded border mb-2">${escapeHtml(c.text).replace(/\n/g, '<br>')}</div>`;
+                                        }
+                                    } else if (c.type === 'image') {
+                                        return `<div class="text-xs text-slate-500 italic bg-white p-2 rounded border mb-2">Image content available</div>`;
+                                    }
+                                    return `<pre class="text-xs bg-white p-2 rounded border mb-2">${escapeHtml(JSON.stringify(c, null, 2))}</pre>`;
+                                }).join('');
+                            } else if (parsedContent && typeof parsedContent === 'object') {
+                                // Render parsed JSON with better formatting
+                                contentHtml = `<pre class="text-xs bg-white p-2 rounded border overflow-x-auto">${escapeHtml(JSON.stringify(parsedContent, null, 2))}</pre>`;
+                            } else {
+                                // Plain text or string result
+                                contentHtml = `<div class="text-sm bg-white p-2 rounded border">${escapeHtml(resultContent).replace(/\n/g, '<br>')}</div>`;
+                            }
+
                             partDiv.innerHTML = `
                                 <div class="mt-2 p-3 bg-emerald-50 rounded-md border border-emerald-200">
                                     <div class="flex items-center gap-2 mb-2">
@@ -781,7 +824,7 @@
                                         </span>
                                         ${part.tool_use_id ? `<span class="text-xs text-slate-500 font-mono">→ ${part.tool_use_id}</span>` : ''}
                                     </div>
-                                    <div class="text-sm bg-white p-2 rounded border">${escapeHtml(part.content || '').replace(/\n/g, '<br>')}</div>
+                                    ${contentHtml}
                                 </div>`;
                         }
                         contentDiv.appendChild(partDiv);
