@@ -190,6 +190,56 @@
         let monitoringInterval = null;
         let currentFileHandle = null;
         let lastModified = null;
+
+        // IndexedDB helper functions for storing directory handles
+        const DB_NAME = 'clog-db';
+        const STORE_NAME = 'directory-handles';
+        const HANDLE_KEY = 'last-directory';
+
+        async function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME);
+                    }
+                };
+            });
+        }
+
+        async function saveDirectoryHandle(handle) {
+            try {
+                const db = await openDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.put(handle, HANDLE_KEY);
+                await new Promise((resolve, reject) => {
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                });
+            } catch (error) {
+                console.error('Error saving directory handle:', error);
+            }
+        }
+
+        async function loadDirectoryHandle() {
+            try {
+                const db = await openDB();
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                return new Promise((resolve, reject) => {
+                    const request = store.get(HANDLE_KEY);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            } catch (error) {
+                console.error('Error loading directory handle:', error);
+                return null;
+            }
+        }
         
         // Initialize event listeners
         document.getElementById('fileInput').addEventListener('change', handleFileSelect, false);
@@ -247,10 +297,38 @@
             
             if (selectedValue === 'browse' && 'showDirectoryPicker' in window) {
                 try {
-                    const dirHandle = await window.showDirectoryPicker({
-                        startIn: 'documents'
-                    });
-                    
+                    // Try to load the last used directory handle from IndexedDB
+                    const savedHandle = await loadDirectoryHandle();
+                    let dirHandle;
+
+                    if (savedHandle) {
+                        // Request permission to access the saved directory
+                        const permission = await savedHandle.queryPermission({ mode: 'read' });
+                        if (permission === 'granted' || (permission === 'prompt' && await savedHandle.requestPermission({ mode: 'read' }) === 'granted')) {
+                            // Use the saved directory handle with startIn
+                            dirHandle = await window.showDirectoryPicker({
+                                id: 'claude-projects',
+                                mode: 'read',
+                                startIn: savedHandle
+                            });
+                        } else {
+                            // Permission denied, use default picker
+                            dirHandle = await window.showDirectoryPicker({
+                                id: 'claude-projects',
+                                mode: 'read'
+                            });
+                        }
+                    } else {
+                        // No saved handle, use default picker
+                        dirHandle = await window.showDirectoryPicker({
+                            id: 'claude-projects',
+                            mode: 'read'
+                        });
+                    }
+
+                    // Save the selected directory handle for next time
+                    await saveDirectoryHandle(dirHandle);
+
                     // Look for JSONL files in the selected directory
                     const jsonlFiles = [];
                     for await (const [name, handle] of dirHandle.entries()) {
