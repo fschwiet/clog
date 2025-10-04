@@ -733,9 +733,21 @@
                     const threadLogs = flattenThread(root);
                     const threadContainer = document.createElement('div');
                     threadContainer.className = 'space-y-4 border-t border-slate-200 pt-6 mt-6 first:mt-0 first:pt-0 first:border-t-0';
-                    
+
+                    // Build a map of tool_use_id to tool_name for this thread
+                    const toolUseMap = new Map();
                     threadLogs.forEach(log => {
-                        const logElement = createLogEntryElement(log);
+                        if (log.message && log.message.content && Array.isArray(log.message.content)) {
+                            log.message.content.forEach(part => {
+                                if (part.type === 'tool_use' && part.id && part.name) {
+                                    toolUseMap.set(part.id, part.name);
+                                }
+                            });
+                        }
+                    });
+
+                    threadLogs.forEach(log => {
+                        const logElement = createLogEntryElement(log, toolUseMap);
                         threadContainer.appendChild(logElement);
                     });
                     timelineContainer.appendChild(threadContainer);
@@ -790,9 +802,10 @@
         /**
          * Creates an HTML element for a single log entry.
          * @param {Object} log The log object.
+         * @param {Map} toolUseMap Map of tool_use_id to tool_name.
          * @returns {HTMLElement} The created HTML element.
          */
-        function createLogEntryElement(log) {
+        function createLogEntryElement(log, toolUseMap = new Map()) {
             const entry = document.createElement('div');
             const role = log.message?.role || log.type || 'system';
             
@@ -894,6 +907,9 @@
                                 contentHtml = `<div class="text-sm bg-white p-2 rounded border">${escapeHtml(resultContent).replace(/\n/g, '<br>')}</div>`;
                             }
 
+                            // Look up the tool name from the map
+                            const toolName = part.tool_use_id && toolUseMap.has(part.tool_use_id) ? toolUseMap.get(part.tool_use_id) : null;
+
                             const uniqueId = `tool-result-${Math.random().toString(36).substr(2, 9)}`;
                             partDiv.innerHTML = `
                                 <div class="mt-2 p-3 bg-emerald-50 rounded-md border border-emerald-200">
@@ -901,6 +917,7 @@
                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                                             ✅ Tool Result
                                         </span>
+                                        ${toolName ? `<span class="text-xs text-slate-500 font-mono">(${toolName})</span>` : ''}
                                         ${part.tool_use_id ? `<span class="text-xs text-slate-500 font-mono">→ ${part.tool_use_id}</span>` : ''}
                                         <button onclick="toggleToolResult('${uniqueId}')" class="ml-auto text-xs text-emerald-700 hover:text-emerald-900 font-medium">
                                             <span id="${uniqueId}-toggle">▼ Expand</span>
