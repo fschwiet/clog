@@ -910,22 +910,31 @@
                             // Look up the tool name from the map
                             const toolName = part.tool_use_id && toolUseMap.has(part.tool_use_id) ? toolUseMap.get(part.tool_use_id) : null;
 
+                            // Check if this is an error result
+                            const isError = part.is_error === true;
+                            const bgColor = isError ? 'bg-red-50' : 'bg-emerald-50';
+                            const borderColor = isError ? 'border-red-200' : 'border-emerald-200';
+                            const badgeColor = isError ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800';
+                            const buttonColor = isError ? 'text-red-700 hover:text-red-900' : 'text-emerald-700 hover:text-emerald-900';
+                            const gradientColor = isError ? 'from-red-50' : 'from-emerald-50';
+                            const icon = isError ? '❌' : '✅';
+
                             const uniqueId = `tool-result-${Math.random().toString(36).substr(2, 9)}`;
                             partDiv.innerHTML = `
-                                <div class="mt-2 p-3 bg-emerald-50 rounded-md border border-emerald-200">
+                                <div class="mt-2 p-3 ${bgColor} rounded-md border ${borderColor}">
                                     <div class="flex items-center gap-2 mb-2">
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                            ✅ Tool Result
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeColor}">
+                                            ${icon} Tool Result
                                         </span>
                                         ${toolName ? `<span class="text-xs text-slate-500 font-mono">(${toolName})</span>` : ''}
                                         ${part.tool_use_id ? `<span class="text-xs text-slate-500 font-mono">→ ${part.tool_use_id}</span>` : ''}
-                                        <button onclick="toggleToolResult('${uniqueId}')" class="ml-auto text-xs text-emerald-700 hover:text-emerald-900 font-medium">
+                                        <button onclick="toggleToolResult('${uniqueId}')" class="ml-auto text-xs ${buttonColor} font-medium">
                                             <span id="${uniqueId}-toggle">▼ Expand</span>
                                         </button>
                                     </div>
                                     <div id="${uniqueId}" class="max-h-[10rem] overflow-hidden relative">
                                         ${contentHtml}
-                                        <div class="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-emerald-50 to-transparent pointer-events-none"></div>
+                                        <div class="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t ${gradientColor} to-transparent pointer-events-none"></div>
                                     </div>
                                 </div>`;
                         }
